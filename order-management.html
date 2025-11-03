@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Ready Kart — Stock Management</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { font-family: "Poppins", Arial, sans-serif; margin: 0; background: #eef2f6; color: #111; }
+
+    /* 🔹 HEADER */
+    header {
+      background: linear-gradient(90deg, #0a0f1c, #14233a);
+      color: white; padding: 18px 30px;
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 22px; font-weight: 700;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    header nav a {
+      color: white; text-decoration: none; margin-left: 18px;
+      font-size: 15px; font-weight: 500;
+    }
+    header nav a:hover { color: #00d1ff; }
+    header nav a.active { color: #00ffa3; }
+
+    /* 🔹 CONTAINER */
+    .container {
+      max-width: 1100px; margin: 40px auto;
+      background: #fff; border-radius: 12px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+      padding: 30px 40px;
+    }
+
+    h2 { border-left: 5px solid #00d1ff; padding-left: 10px; color: #14233a; }
+
+    /* 🔹 TABS */
+    .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+    .tab-btn {
+      background: #f0f0f0; border: none; padding: 10px 20px; border-radius: 8px;
+      font-weight: 600; cursor: pointer; color: #333; transition: 0.2s;
+    }
+    .tab-btn.active { background: linear-gradient(90deg,#00d1ff,#00ffa3); color: #000; }
+
+    /* 🔹 SEARCH BAR */
+    #searchBar {
+      width: 100%; padding: 10px; border-radius: 8px;
+      border: 1px solid #ccc; font-size: 15px; margin-bottom: 20px;
+    }
+
+    /* 🔹 GRID + CARD */
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; }
+    .card {
+      background: #f9fafc; border-radius: 10px; border: 1px solid #eee;
+      padding: 12px; cursor: pointer; transition: 0.3s; text-align: center;
+    }
+    .card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .stock-green { color: #00b894; }
+    .stock-red { color: #ff5757; }
+    .stock-yellow { color: #f9a825; }
+    .muted { color: #777; font-size: 13px; }
+
+    /* 🔹 TOAST */
+    #toast {
+      position: fixed; bottom: 30px; right: 30px;
+      background: #14233a; color: #fff; padding: 14px 18px;
+      border-radius: 8px; opacity: 0; transition: all 0.4s ease;
+      z-index: 999; font-weight: 600;
+    }
+    #toast.show { opacity: 1; transform: translateY(-10px); }
+
+    /* 🔹 MODAL */
+    .modal {
+      display: none; position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%; background: rgba(0,0,0,0.4);
+      justify-content: center; align-items: center; z-index: 1000;
+    }
+    .modal-content {
+      background: #fff; padding: 25px 30px; border-radius: 10px;
+      width: 400px; max-width: 90%;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+      position: relative;
+    }
+    .modal-content h3 { margin-top: 0; color: #14233a; }
+    .close-btn {
+      position: absolute; top: 10px; right: 12px;
+      cursor: pointer; font-size: 20px; color: #555;
+    }
+    input[type="number"] {
+      width: 100%; padding: 8px; border: 1px solid #ccc;
+      border-radius: 6px; margin-top: 8px; font-size: 15px;
+    }
+    button {
+      background: linear-gradient(90deg,#00d1ff,#00ffa3);
+      border: none; color: #000; font-weight: 700;
+      padding: 10px 16px; border-radius: 8px; cursor: pointer; margin-top: 15px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 🔹 HEADER -->
+  <header>
+    <div>⚙️ Ready Kart — Stock Management</div>
+    <nav>
+      <a href="index.html">🏠 Home</a>
+      <a href="order-management.html" class="active">📦 Stock</a>
+      <a href="orders.html">🧾 Orders</a>
+      <a href="revenue.html">💰 Revenue</a>
+      <a href="users.html">👥 Users</a>
+    </nav>
+  </header>
+
+  <!-- 🔹 MAIN CONTENT -->
+  <div class="container">
+    <h2>📦 Product Stock Overview</h2>
+    <p class="muted">Check stock levels, view product details, and update availability.</p>
+
+    <!-- 🔹 Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="in">🟢 In Stock</button>
+      <button class="tab-btn" data-tab="low">🟡 Low Stock</button>
+      <button class="tab-btn" data-tab="out">🔴 Out of Stock</button>
+    </div>
+
+    <!-- 🔹 Search -->
+    <input type="text" id="searchBar" placeholder="🔍 Search product by name..." />
+
+    <!-- 🔹 Product Grid -->
+    <div id="productList" class="grid"></div>
+  </div>
+
+  <div id="toast"></div>
+
+  <!-- 🔹 MODAL (for full details + update) -->
+  <div id="detailModal" class="modal">
+    <div class="modal-content">
+      <span class="close-btn" onclick="closeModal()">&times;</span>
+      <h3 id="modalTitle"></h3>
+      <p><b>Category:</b> <span id="modalCategory"></span></p>
+      <p><b>Price:</b> ₹<span id="modalPrice"></span></p>
+      <p><b>Quantity Type:</b> <span id="modalQuantity"></span></p>
+      <p><b>Current Stock:</b> <span id="modalStock"></span></p>
+      <label for="newStock">Update Stock:</label>
+      <input id="newStock" type="number" min="0" />
+      <button onclick="updateStock()">💾 Update Stock</button>
+    </div>
+  </div>
+
+  <!-- 🔹 FIREBASE SCRIPT -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import {
+      getFirestore, collection, getDocs, updateDoc, doc
+    } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyC2gN7Tw2YM36TqBcKGYVpG31_hlKa5Kyw",
+      authDomain: "ready-cart-4fc41.firebaseapp.com",
+      projectId: "ready-cart-4fc41",
+      storageBucket: "ready-cart-4fc41.firebasestorage.app",
+      messagingSenderId: "730099889115",
+      appId: "1:730099889115:web:6febdde1d885eb4078adfe",
+      measurementId: "G-LPSYQJC621"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const toast = document.getElementById("toast");
+    function showToast(msg, color="#14233a") {
+      toast.textContent=msg; toast.style.background=color;
+      toast.classList.add("show");
+      setTimeout(()=>toast.classList.remove("show"),3000);
+    }
+
+    // GLOBALS
+    let allProducts = [];
+    let currentTab = "in";
+    let selectedProductId = null;
+
+    async function loadProducts() {
+      const snap = await getDocs(collection(db, "products"));
+      allProducts = [];
+      snap.forEach(p=>{
+        const d=p.data();
+        allProducts.push({ id:p.id, ...d });
+      });
+      renderProducts();
+    }
+
+    function renderProducts() {
+      const list = document.getElementById("productList");
+      const searchVal = document.getElementById("searchBar").value.toLowerCase();
+      list.innerHTML = "";
+
+      const filtered = allProducts.filter(p=>{
+        if (currentTab === "out") return (p.stock ?? 0) === 0;
+        if (currentTab === "low") return (p.stock ?? 0) > 0 && (p.stock ?? 0) <= 10;
+        if (currentTab === "in") return (p.stock ?? 0) > 10;
+      }).filter(p => p.name.toLowerCase().includes(searchVal));
+
+      if (filtered.length === 0) {
+        list.innerHTML = "<p class='muted'>No products found.</p>";
+        return;
+      }
+
+      filtered.forEach(p=>{
+        const stock = p.stock ?? 0;
+        let stockClass = "stock-yellow";
+        if (stock === 0) stockClass = "stock-red";
+        else if (stock > 10) stockClass = "stock-green";
+
+        list.innerHTML += `
+          <div class="card" onclick="openModal('${p.id}')">
+            <b>${p.name}</b>
+            <p class="muted">${p.categoryName || 'Uncategorized'}</p>
+            <p class="${stockClass}">Stock: ${stock}</p>
+          </div>
+        `;
+      });
+    }
+
+    // 🔹 Search
+    document.getElementById("searchBar").addEventListener("input", renderProducts);
+
+    // 🔹 Tabs
+    document.querySelectorAll(".tab-btn").forEach(btn=>{
+      btn.addEventListener("click",()=>{
+        document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
+        btn.classList.add("active");
+        currentTab = btn.dataset.tab;
+        renderProducts();
+      });
+    });
+
+    // 🔹 Modal
+    window.openModal = function(id) {
+      const p = allProducts.find(x=>x.id===id);
+      if(!p)return;
+      selectedProductId = id;
+      document.getElementById("modalTitle").textContent = p.name;
+      document.getElementById("modalCategory").textContent = p.categoryName || 'N/A';
+      document.getElementById("modalPrice").textContent = p.price || 0;
+      document.getElementById("modalQuantity").textContent = p.quantity || '-';
+      document.getElementById("modalStock").textContent = p.stock ?? 0;
+      document.getElementById("newStock").value = p.stock ?? 0;
+      document.getElementById("detailModal").style.display="flex";
+    }
+
+    window.closeModal = function(){
+      document.getElementById("detailModal").style.display="none";
+    }
+
+    window.updateStock = async function(){
+      const newVal = parseInt(document.getElementById("newStock").value)||0;
+      if(selectedProductId){
+        await updateDoc(doc(db,"products",selectedProductId),{stock:newVal});
+        showToast("✅ Stock updated!");
+        document.getElementById("detailModal").style.display="none";
+        loadProducts();
+      }
+    }
+
+    // INITIAL LOAD
+    loadProducts();
+  </script>
+</body>
+</html>

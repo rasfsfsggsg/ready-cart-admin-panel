@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Ready Kart — Admin Dashboard</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { font-family:"Poppins",Arial,sans-serif; margin:0; background:#eef2f6; color:#111; }
+    header {
+      background:linear-gradient(90deg,#0a0f1c,#14233a);
+      color:white; padding:18px 30px;
+      display:flex; justify-content:space-between; align-items:center;
+      font-size:22px; font-weight:700; box-shadow:0 4px 12px rgba(0,0,0,0.2);
+    }
+    header nav a { color:white; text-decoration:none; margin-left:18px; font-size:15px; font-weight:500; }
+    header nav a:hover { color:#00d1ff; } header nav a.active { color:#00ffa3; }
+    .container { max-width:1100px; margin:40px auto; background:#fff; border-radius:12px;
+      box-shadow:0 6px 20px rgba(0,0,0,0.08); padding:30px 40px; position:relative; }
+    h2 { border-left:5px solid #00d1ff; padding-left:10px; color:#14233a; }
+    label { display:block; margin:10px 0 5px; font-weight:600; }
+    input,select { width:100%; padding:10px; border-radius:6px; border:1px solid #ccc; font-size:15px; }
+    input[type="file"] { margin-top:6px; }
+    button { background:linear-gradient(90deg,#00d1ff,#00ffa3); border:none; color:#000; font-weight:700;
+      padding:10px 16px; border-radius:8px; cursor:pointer; margin-top:10px; }
+    button:disabled { opacity:0.5; cursor:not-allowed; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:15px; margin-top:10px; }
+    .card { background:#f9fafc; border-radius:10px; border:1px solid #eee; padding:10px;
+      display:flex; flex-direction:column; align-items:center; text-align:center; position:relative; }
+    .card img { width:100%; height:150px; border-radius:8px; object-fit:cover; }
+    .card button.small { background:#ff5757; color:white; padding:5px 8px; border-radius:6px; font-size:12px; margin:5px; }
+    .edit-btn { background:#00b894 !important; }
+    .progress { width:100%; height:8px; background:#eee; border-radius:4px; margin-top:10px;
+      overflow:hidden; display:none; }
+    .progress-bar { height:100%; background:linear-gradient(90deg,#00d1ff,#00ffa3); width:0%; transition:width 0.3s; }
+    #toast { position:fixed; bottom:30px; right:30px; background:#14233a; color:#fff; padding:14px 18px;
+      border-radius:8px; opacity:0; transition:all 0.4s; z-index:999; font-weight:600;
+      box-shadow:0 4px 12px rgba(0,0,0,0.3); }
+    #toast.show { opacity:1; transform:translateY(-10px); }
+    .img-row { display:flex; gap:10px; }
+    .img-row input { flex:1; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>⚙️ Ready Kart — Admin Dashboard</div>
+    <nav>
+      <a href="index.html" class="active">🏠 Home</a>
+      <a href="order-management.html">📦 Product Management</a>
+      <a href="orders.html">🧾 Orders</a>
+      <a href="revenue.html">💰 Revenue</a>
+      <a href="users.html">👥 Users</a>
+    </nav>
+  </header>
+
+  <div class="container">
+    <p style="color:#666;">Manage slides, categories & products. Upload images via ImgBB, sync with Firestore.</p>
+
+    <!-- SLIDES -->
+    <h2>🏞 Main Slides (Max 4)</h2>
+    <form id="slideForm">
+      <label>Upload Slide Image</label>
+      <input id="slideImage" type="file" accept="image/*" />
+      <div class="progress" id="slideProgress"><div class="progress-bar"></div></div>
+      <button type="button" id="addSlideBtn">Add Slide</button>
+    </form>
+    <div id="slideList" class="grid"></div>
+
+    <hr/>
+
+    <!-- CATEGORIES -->
+    <h2>📦 Categories</h2>
+    <form id="catForm">
+      <label>Category Name</label>
+      <input id="catName" type="text" placeholder="Snacks" required />
+      <label>Icon Image</label>
+      <input id="catIcon" type="file" accept="image/*" />
+      <div class="progress" id="catProgress"><div class="progress-bar"></div></div>
+      <button type="button" id="saveCatBtn">Add / Update Category</button>
+    </form>
+    <div id="catList" class="grid"></div>
+
+    <hr/>
+
+    <!-- PRODUCTS -->
+    <h2>🛍 Products</h2>
+    <form id="prodForm">
+      <label>Product Name</label>
+      <input id="prodName" type="text" required />
+      <label>Price (₹)</label>
+      <input id="prodPrice" type="number" required />
+      <label>Quantity</label>
+      <input id="prodQty" type="text" placeholder="pack, kg, pcs" />
+      <label>Category</label>
+      <select id="prodCat"></select>
+      <label>Stock in Godown</label>
+      <input id="prodStock" type="number" min="0" placeholder="0, 5, 10" />
+      
+      <label>Upload 4 Images (First is Main)</label>
+      <div class="img-row">
+        <input id="prodImg1" type="file" accept="image/*" />
+        <input id="prodImg2" type="file" accept="image/*" />
+        <input id="prodImg3" type="file" accept="image/*" />
+        <input id="prodImg4" type="file" accept="image/*" />
+      </div>
+      <div class="progress" id="prodProgress"><div class="progress-bar"></div></div>
+      <button type="button" id="saveProdBtn">Add / Update Product</button>
+    </form>
+    <div id="prodList" class="grid"></div>
+  </div>
+
+  <div id="toast"></div>
+
+  <!-- ✅ MAIN SCRIPT -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import {
+      getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, getDocs, getDoc
+    } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyC2gN7Tw2YM36TqBcKGYVpG31_hlKa5Kyw",
+      authDomain: "ready-cart-4fc41.firebaseapp.com",
+      projectId: "ready-cart-4fc41",
+      storageBucket: "ready-cart-4fc41.firebasestorage.app",
+      messagingSenderId: "730099889115",
+      appId: "1:730099889115:web:6febdde1d885eb4078adfe",
+      measurementId: "G-LPSYQJC621"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const IMGBB_KEY = "cdd0523012612878dfb4019a42120671";
+    const UPLOAD_URL = `https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`;
+
+    // Toast
+    function showToast(msg,color="#14233a"){
+      const t=document.getElementById("toast");
+      t.innerText=msg;t.style.background=color;
+      t.classList.add("show");setTimeout(()=>t.classList.remove("show"),3000);
+    }
+
+    // Upload with Progress
+    async function uploadImageWithProgress(file,progressId){
+      return new Promise((resolve,reject)=>{
+        const xhr=new XMLHttpRequest();
+        const form=new FormData();form.append("image",file);
+        const p=document.getElementById(progressId);
+        const bar=p.querySelector(".progress-bar");
+        p.style.display="block";bar.style.width="0%";
+        xhr.upload.addEventListener("progress",(e)=>{
+          if(e.lengthComputable){
+            const percent=Math.round((e.loaded/e.total)*100);
+            bar.style.width=percent+"%";
+          }
+        });
+        xhr.onreadystatechange=function(){
+          if(xhr.readyState===XMLHttpRequest.DONE){
+            p.style.display="none";
+            if(xhr.status===200){
+              const res=JSON.parse(xhr.responseText);
+              res.success?resolve(res.data.url):reject("Upload failed");
+            }else reject("Upload failed");
+          }
+        };
+        xhr.open("POST",UPLOAD_URL);xhr.send(form);
+      });
+    }
+
+    // Slides
+    async function loadSlides(){
+      const snap=await getDocs(collection(db,"slides"));
+      const list=document.getElementById("slideList");list.innerHTML="";
+      snap.forEach(s=>{
+        const d=s.data();
+        list.innerHTML+=`
+          <div class="card">
+            <img src="${d.imageUrl}">
+            <button class="small" onclick="deleteSlide('${s.id}')">Delete</button>
+          </div>`;
+      });
+    }
+    window.deleteSlide=async(id)=>{
+      if(confirm("Delete slide?")){await deleteDoc(doc(db,"slides",id));await loadSlides();showToast("Slide deleted","#ff5757");}
+    };
+    addSlideBtn.onclick=async()=>{
+      try{
+        const file=slideImage.files[0];
+        if(!file)return alert("Select image");
+        const url=await uploadImageWithProgress(file,"slideProgress");
+        await addDoc(collection(db,"slides"),{imageUrl:url,createdAt:new Date()});
+        await loadSlides();slideImage.value="";showToast("✅ Slide added!");
+      }catch(e){alert(e);}
+    };
+
+    // Categories
+    async function loadCats(){
+      const snap=await getDocs(collection(db,"categories"));
+      const list=document.getElementById("catList");
+      const sel=document.getElementById("prodCat");
+      list.innerHTML="";sel.innerHTML="";
+      snap.forEach(c=>{
+        const d=c.data();
+        list.innerHTML+=`
+          <div class="card">
+            <img src="${d.iconUrl||''}">
+            <b>${d.name}</b>
+            <div>
+              <button class="small edit-btn" onclick="editCat('${c.id}','${d.name}','${d.iconUrl||''}')">Edit</button>
+              <button class="small" onclick="deleteCat('${c.id}')">Delete</button>
+            </div>
+          </div>`;
+        const opt=document.createElement("option");
+        opt.value=c.id;opt.text=d.name;sel.appendChild(opt);
+      });
+    }
+
+    window.editCat=function(id,name,icon){
+      catName.value=name;
+      saveCatBtn.setAttribute("data-edit-id",id);
+      saveCatBtn.setAttribute("data-old-icon",icon);
+    }
+
+    window.deleteCat=async(id)=>{
+      if(confirm("Delete this category?")){
+        await deleteDoc(doc(db,"categories",id));
+        await loadCats();
+        showToast("Category deleted","#ff5757");
+      }
+    }
+
+    saveCatBtn.onclick=async()=>{
+      try{
+        const name=catName.value.trim();
+        const file=catIcon.files[0];
+        if(!name)return alert("Enter category name");
+        const editId=saveCatBtn.getAttribute("data-edit-id");
+        const oldIcon=saveCatBtn.getAttribute("data-old-icon");
+        let iconUrl=oldIcon;
+        if(file)iconUrl=await uploadImageWithProgress(file,"catProgress");
+
+        if(editId){
+          await updateDoc(doc(db,"categories",editId),{name,iconUrl});
+          showToast("✅ Category updated!");
+        }else{
+          await addDoc(collection(db,"categories"),{name,iconUrl,createdAt:new Date()});
+          showToast("✅ Category added!");
+        }
+        saveCatBtn.removeAttribute("data-edit-id");
+        saveCatBtn.removeAttribute("data-old-icon");
+        catForm.reset();
+        await loadCats();
+      }catch(e){alert("Error: "+e);}
+    };
+
+    // Products
+    async function loadProducts(){
+      const snap=await getDocs(collection(db,"products"));
+      const list=document.getElementById("prodList");list.innerHTML="";
+      snap.forEach(p=>{
+        const d=p.data();
+        const imgs = d.imageUrls?.length
+          ? d.imageUrls.map(u=>`<img src="${u}" style="width:70px;height:70px;border-radius:6px;object-fit:cover;margin:4px;">`).join('')
+          : '';
+        list.innerHTML+=`
+          <div class="card">
+            <div>${imgs}</div>
+            <b>${d.name}</b>
+            <span>₹${d.price} • ${d.quantity||''}</span>
+            <span>Stock: ${d.stock??0}</span>
+            <span>Category: ${d.categoryName||'—'}</span>
+            <div>
+              <button class="small edit-btn" onclick='editProd("${p.id}","${d.name}","${d.price}","${d.quantity||''}","${d.categoryId}","${d.stock||0}",${JSON.stringify(d.imageUrls||[])})'>Edit</button>
+              <button class="small" onclick="deleteProd('${p.id}')">Delete</button>
+            </div>
+          </div>`;
+      });
+    }
+
+    window.editProd=function(id,name,price,qty,cat,stock,imgArr){
+      prodName.value=name;prodPrice.value=price;prodQty.value=qty;
+      prodCat.value=cat;prodStock.value=stock;
+      saveProdBtn.setAttribute("data-edit-id",id);
+      saveProdBtn.setAttribute("data-old-imgs",JSON.stringify(imgArr));
+    }
+
+    window.deleteProd=async(id)=>{
+      if(confirm("Delete this product?")){
+        await deleteDoc(doc(db,"products",id));
+        await loadProducts();
+        showToast("Product deleted","#ff5757");
+      }
+    }
+
+    saveProdBtn.onclick=async()=>{
+      try{
+        const name=prodName.value.trim();
+        const price=parseFloat(prodPrice.value);
+        const qty=prodQty.value.trim();
+        const catId=prodCat.value;
+        const stock=parseInt(prodStock.value)||0;
+        const files=[
+          prodImg1.files[0],
+          prodImg2.files[0],
+          prodImg3.files[0],
+          prodImg4.files[0]
+        ].filter(f=>f);
+        if(!name||!price)return alert("Enter details");
+
+        const catSnap = await getDoc(doc(db,"categories",catId));
+        const catName = catSnap.exists() ? catSnap.data().name : "";
+
+        const editId=saveProdBtn.getAttribute("data-edit-id");
+        const oldImgs=JSON.parse(saveProdBtn.getAttribute("data-old-imgs")||"[]");
+
+        let imageUrls=[...oldImgs];
+        if(files.length>0){
+          imageUrls=[];
+          for(let i=0;i<files.length;i++){
+            const url=await uploadImageWithProgress(files[i],"prodProgress");
+            imageUrls.push(url);
+          }
+        }
+
+        const mainImage=imageUrls[0]||"";
+
+        if(editId){
+          await updateDoc(doc(db,"products",editId),{
+            name,price,quantity:qty,categoryId:catId,categoryName:catName,stock,
+            imageUrl:mainImage,imageUrls
+          });
+          showToast("✅ Product updated!");
+        }else{
+          await addDoc(collection(db,"products"),{
+            name,price,quantity:qty,categoryId:catId,categoryName:catName,stock,
+            imageUrl:mainImage,imageUrls,createdAt:new Date()
+          });
+          showToast("✅ Product added!");
+        }
+        saveProdBtn.removeAttribute("data-edit-id");
+        saveProdBtn.removeAttribute("data-old-imgs");
+        prodForm.reset();
+        await loadProducts();
+      }catch(e){alert("Error:"+e);}
+    };
+
+    // Init
+    await loadSlides();
+    await loadCats();
+    await loadProducts();
+  </script>
+</body>
+</html>

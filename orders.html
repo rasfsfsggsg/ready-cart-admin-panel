@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Ready Kart — Admin Dashboard</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { font-family: "Poppins", Arial, sans-serif; margin: 0; background: #eef2f6; color: #111; }
+
+    /* 🔹 HEADER + NAVIGATION */
+    header {
+      background: linear-gradient(90deg, #0a0f1c, #14233a);
+      color: white;
+      padding: 18px 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 22px;
+      font-weight: 700;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    header nav a {
+      color: white;
+      text-decoration: none;
+      margin-left: 18px;
+      font-size: 15px;
+      font-weight: 500;
+    }
+    header nav a:hover { color: #00d1ff; }
+    header nav a.active { color: #00ffa3; }
+
+    /* 🔹 PAGE CONTAINER + CONTENT */
+    .container {
+      max-width: 1100px;
+      margin: 40px auto;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+      padding: 30px 40px;
+    }
+    h2 { border-left: 5px solid #00d1ff; padding-left: 10px; color: #14233a; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; margin-top: 15px; }
+    .card {
+      background: #f9fafc; border-radius: 10px; border: 1px solid #eee;
+      padding: 12px; text-align: left;
+    }
+    .muted { color: #777; font-size: 13px; }
+    .small-btn {
+      background: #ff5757;
+      color: white;
+      padding: 5px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      border: none;
+      cursor: pointer;
+    }
+
+    /* 🔹 TOAST MESSAGE */
+    #toast {
+      position: fixed; bottom: 30px; right: 30px;
+      background: #14233a; color: #fff;
+      padding: 14px 18px;
+      border-radius: 8px; opacity: 0; transition: all 0.4s ease;
+      z-index: 999; font-weight: 600;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    #toast.show { opacity: 1; transform: translateY(-10px); }
+  </style>
+</head>
+<body>
+
+  <!-- 🔹 TOP HEADER WITH NAVIGATION -->
+  <header>
+    <div>⚙️ Ready Kart — Admin Dashboard</div>
+    <nav>
+      <a href="index.html">🏠 Home</a>
+      <a href="order-management.html" class="active">📦 Product Management</a>
+      <a href="orders.html">🧾 Orders</a>
+      <a href="revenue.html">💰 Revenue</a>
+      <a href="users.html">👥 Users</a>
+    </nav>
+  </header>
+
+  <!-- 🔹 PAGE CONTENT -->
+  <div class="container">
+    <p class="muted">View all Buy/Sell transactions and Flutter App orders.</p>
+
+    <h2>📦 Flutter Orders</h2>
+    <div id="ordersList" class="grid"></div>
+
+    <h2>💰 Buy/Sell Transactions</h2>
+    <div id="txnList" class="grid"></div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import {
+      getFirestore, collection, getDocs, deleteDoc, doc, query, orderBy
+    } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyC2gN7Tw2YM36TqBcKGYVpG31_hlKa5Kyw",
+      authDomain: "ready-cart-4fc41.firebaseapp.com",
+      projectId: "ready-cart-4fc41",
+      storageBucket: "ready-cart-4fc41.firebasestorage.app",
+      messagingSenderId: "730099889115",
+      appId: "1:730099889115:web:6febdde1d885eb4078adfe",
+      measurementId: "G-LPSYQJC621"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    function showToast(msg, color="#14233a") {
+      const t = document.getElementById("toast");
+      t.textContent = msg;
+      t.style.background = color;
+      t.classList.add("show");
+      setTimeout(()=>t.classList.remove("show"),3000);
+    }
+
+    // 🔹 Load Flutter Orders
+    async function loadOrders() {
+      const q = query(collection(db, "orders"), orderBy("timestamp", "desc"));
+      const snap = await getDocs(q);
+      const list = document.getElementById("ordersList");
+      list.innerHTML = "";
+
+      snap.forEach(o => {
+        const d = o.data();
+        const statusColor =
+          d.status === "Placed" ? "#00b894" :
+          d.status === "Cart" ? "#0984e3" : "#636e72";
+        list.innerHTML += `
+          <div class="card">
+            <b>${d.productName || "Unknown Product"}</b>
+            <p class="muted">₹${d.productPrice} × ${d.quantity} = <b>₹${d.totalPrice}</b></p>
+            <p style="color:${statusColor}"><b>Status:</b> ${d.status}</p>
+            <p><b>Buyer:</b> ${d.userName || "N/A"}</p>
+            <p class="muted">📞 ${d.userPhone || "N/A"} ${d.altPhone ? " / " + d.altPhone : ""}</p>
+            <p class="muted">🏠 ${d.address || "No address"}</p>
+            <p class="muted">🕒 ${d.timestamp?.toDate ? d.timestamp.toDate().toLocaleString() : "N/A"}</p>
+            <button class="small-btn" onclick="deleteOrder('${o.id}')">Delete</button>
+          </div>
+        `;
+      });
+    }
+
+    // 🔹 Load Buy/Sell Transactions
+    async function loadTransactions() {
+      const q = query(collection(db, "transactions"), orderBy("createdAt", "desc"));
+      const snap = await getDocs(q);
+      const list = document.getElementById("txnList");
+      list.innerHTML = "";
+
+      snap.forEach(t => {
+        const d = t.data();
+        const color = d.type === "buy" ? "#00b894" : "#ff7675";
+        list.innerHTML += `
+          <div class="card">
+            <b>${d.productName}</b>
+            <p style="color:${color};text-transform:capitalize;">${d.type}</p>
+            <p class="muted">Qty: ${d.quantity} • ₹${d.price}</p>
+            <p>Total: <b>₹${d.quantity * d.price}</b></p>
+            ${d.buyerName ? `<p class="muted">👤 ${d.buyerName} | 📞 ${d.buyerPhone}</p><p class="muted">🏠 ${d.buyerAddress}</p>` : ""}
+            <button class="small-btn" onclick="deleteTxn('${t.id}')">Delete</button>
+          </div>
+        `;
+      });
+    }
+
+    // 🔹 Delete Functions
+    window.deleteOrder = async function(id) {
+      if (confirm("Delete this order?")) {
+        await deleteDoc(doc(db, "orders", id));
+        await loadOrders();
+        showToast("Order deleted", "#ff5757");
+      }
+    };
+    window.deleteTxn = async function(id) {
+      if (confirm("Delete this transaction?")) {
+        await deleteDoc(doc(db, "transactions", id));
+        await loadTransactions();
+        showToast("Transaction deleted", "#ff5757");
+      }
+    };
+
+    await loadOrders();
+    await loadTransactions();
+  </script>
+</body>
+</html>

@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Ready Kart — Users</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { font-family:"Poppins",Arial,sans-serif; margin:0; background:#eef2f6; color:#111; }
+    header {
+      background:linear-gradient(90deg,#0a0f1c,#14233a);
+      color:white; padding:18px 30px;
+      display:flex; justify-content:space-between; align-items:center;
+      font-size:22px; font-weight:700;
+      box-shadow:0 4px 12px rgba(0,0,0,0.2);
+    }
+    header nav a { color:white; text-decoration:none; margin-left:18px; font-size:15px; font-weight:500; }
+    header nav a:hover { color:#00d1ff; }
+    header nav a.active { color:#00ffa3; }
+    .container { max-width:1100px; margin:40px auto; background:#fff; border-radius:12px; box-shadow:0 6px 20px rgba(0,0,0,0.08); padding:30px 40px; }
+    h2 { border-left:5px solid #00d1ff; padding-left:10px; color:#14233a; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:15px; margin-top:15px; }
+    .card { background:#f9fafc; border-radius:10px; border:1px solid #eee; padding:12px; }
+    .muted { color:#777; font-size:13px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>⚙️ Ready Kart — Admin Dashboard</div>
+    <nav>
+      <a href="index.html">🏠 Home</a>
+      <a href="order-management.html">📦 Product Management</a>
+      <a href="orders.html">🧾 Orders</a>
+      <a href="revenue.html">💰 Revenue</a>
+      <a href="users.html" class="active">👥 Users</a>
+    </nav>
+  </header>
+
+  <div class="container">
+    <h2>👥 Registered Users</h2>
+    <p class="muted">All user accounts fetched from Firestore.</p>
+    <div id="userList" class="grid"></div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyC2gN7Tw2YM36TqBcKGYVpG31_hlKa5Kyw",
+      authDomain: "ready-cart-4fc41.firebaseapp.com",
+      projectId: "ready-cart-4fc41",
+      storageBucket: "ready-cart-4fc41.firebasestorage.app",
+      messagingSenderId: "730099889115",
+      appId: "1:730099889115:web:6febdde1d885eb4078adfe",
+      measurementId: "G-LPSYQJC621"
+    };
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    async function loadUsers(){
+      const snap = await getDocs(collection(db, "users"));
+      const list = document.getElementById("userList");
+      list.innerHTML = "";
+      snap.forEach(u=>{
+        const d=u.data();
+        list.innerHTML += `
+          <div class="card">
+            <b>${d.name || "Unnamed User"}</b>
+            <p class="muted">📞 ${d.phone || "N/A"}</p>
+            <p class="muted">📧 ${d.email || "N/A"}</p>
+            <p class="muted">📍 ${d.address || "No Address"}</p>
+          </div>
+        `;
+      });
+    }
+
+    loadUsers();
+  </script>
+</body>
+</html>

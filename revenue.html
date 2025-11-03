@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Ready Kart — Revenue</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { font-family: "Poppins", Arial, sans-serif; margin: 0; background: #eef2f6; color: #111; }
+    header {
+      background: linear-gradient(90deg, #0a0f1c, #14233a);
+      color: white; padding: 18px 30px;
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 22px; font-weight: 700;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    header nav a { color: white; text-decoration: none; margin-left: 18px; font-size: 15px; font-weight: 500; }
+    header nav a:hover { color: #00d1ff; }
+    header nav a.active { color: #00ffa3; }
+    .container { max-width: 1100px; margin: 40px auto; background: #fff; border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.08); padding: 30px 40px; }
+    h2 { border-left: 5px solid #00d1ff; padding-left: 10px; color: #14233a; }
+    .stat { background:#f9fafc; border-radius:10px; padding:20px; margin:10px 0; border:1px solid #eee; font-size:18px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>⚙️ Ready Kart — Admin Dashboard</div>
+    <nav>
+      <a href="index.html">🏠 Home</a>
+      <a href="order-management.html">📦 Product Management</a>
+      <a href="orders.html">🧾 Orders</a>
+      <a href="revenue.html" class="active">💰 Revenue</a>
+      <a href="users.html">👥 Users</a>
+    </nav>
+  </header>
+
+  <div class="container">
+    <h2>💰 Revenue Overview</h2>
+    <p class="muted">Total sales and transactions from Firestore data.</p>
+
+    <div id="revenueStats">
+      <div class="stat">Loading data...</div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyC2gN7Tw2YM36TqBcKGYVpG31_hlKa5Kyw",
+      authDomain: "ready-cart-4fc41.firebaseapp.com",
+      projectId: "ready-cart-4fc41",
+      storageBucket: "ready-cart-4fc41.firebasestorage.app",
+      messagingSenderId: "730099889115",
+      appId: "1:730099889115:web:6febdde1d885eb4078adfe",
+      measurementId: "G-LPSYQJC621"
+    };
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    async function loadRevenue(){
+      const ordersSnap = await getDocs(collection(db, "orders"));
+      let total = 0, count = 0;
+      ordersSnap.forEach(o => {
+        const d=o.data();
+        if(d.totalPrice){ total += d.totalPrice; count++; }
+      });
+      document.getElementById("revenueStats").innerHTML = `
+        <div class="stat">📦 Total Orders: <b>${count}</b></div>
+        <div class="stat">💰 Total Revenue: <b>₹${total.toFixed(2)}</b></div>
+        <div class="stat">📈 Average Order Value: <b>₹${(count? total/count : 0).toFixed(2)}</b></div>
+      `;
+    }
+
+    loadRevenue();
+  </script>
+</body>
+</html>
